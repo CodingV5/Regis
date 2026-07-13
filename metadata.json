@@ -1,0 +1,6 @@
+{
+  "name": "Regis",
+  "description": "A minimalist, distraction-free web application for displaying a poetry portfolio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
