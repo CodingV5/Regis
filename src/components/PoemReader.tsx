@@ -271,6 +271,16 @@ export default function PoemReader({ poemId, onNavigate, poems, favorites, toggl
               )}
             </AnimatePresence>
           </div>
+          
+          {poem.tags && poem.tags.length > 0 && (
+            <div className="mt-12 flex flex-wrap gap-2 w-full">
+              {poem.tags.map(tag => (
+                <span key={tag} className="px-3 py-1 bg-[var(--sidebar-bg)] border border-[var(--border-color)] text-[var(--text-muted)] text-[10px] uppercase tracking-widest font-sans rounded-sm">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </article>
       

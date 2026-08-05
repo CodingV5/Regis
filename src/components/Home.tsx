@@ -15,7 +15,8 @@ export default function Home({ onNavigate, poems, favorites, toggleFavorite }: H
 
   const filteredPoems = poems.filter(poem => 
     poem.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    poem.stanzas.some(stanza => stanza.toLowerCase().includes(searchQuery.toLowerCase()))
+    poem.stanzas.some(stanza => stanza.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (poem.tags && poem.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())))
   );
 
   // Group poems by category

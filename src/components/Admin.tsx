@@ -21,6 +21,7 @@ export default function Admin({ poems, setPoems, onNavigate, onLogout }: AdminPr
   const [imageUrl, setImageUrl] = useState('');
   const [imagePrompt, setImagePrompt] = useState('');
   const [glyph, setGlyph] = useState('');
+  const [tagsText, setTagsText] = useState('');
 
   const handleEdit = (poem: Poem) => {
     setEditingPoem(poem);
@@ -30,6 +31,7 @@ export default function Admin({ poems, setPoems, onNavigate, onLogout }: AdminPr
     setImageUrl(poem.imageUrl || '');
     setImagePrompt(poem.imagePrompt || '');
     setGlyph(poem.glyph || '');
+    setTagsText(poem.tags ? poem.tags.join(', ') : '');
     setIsAdding(false);
   };
 
@@ -41,6 +43,7 @@ export default function Admin({ poems, setPoems, onNavigate, onLogout }: AdminPr
     setImageUrl('');
     setImagePrompt('');
     setGlyph('');
+    setTagsText('');
     setIsAdding(true);
   };
 
@@ -65,6 +68,7 @@ export default function Admin({ poems, setPoems, onNavigate, onLogout }: AdminPr
     }
 
     const stanzas = stanzasText.split('\n\n').filter(s => s.trim() !== '');
+    const tagList = tagsText.split(',').map(t => t.trim()).filter(t => t !== '');
 
     if (isAdding) {
       const newPoem: Poem = {
@@ -75,12 +79,13 @@ export default function Admin({ poems, setPoems, onNavigate, onLogout }: AdminPr
         imageUrl: imageUrl.trim() || undefined,
         imagePrompt: imagePrompt.trim() || undefined,
         glyph: glyph.trim() || undefined,
+        tags: tagList.length > 0 ? tagList : undefined,
       };
       setPoems([...poems, newPoem]);
     } else if (editingPoem) {
       const updatedPoems = poems.map(p => 
         p.id === editingPoem.id 
-          ? { ...p, title: title.trim(), category: category.trim(), stanzas, imageUrl: imageUrl.trim() || undefined, imagePrompt: imagePrompt.trim() || undefined, glyph: glyph.trim() || undefined } 
+          ? { ...p, title: title.trim(), category: category.trim(), stanzas, imageUrl: imageUrl.trim() || undefined, imagePrompt: imagePrompt.trim() || undefined, glyph: glyph.trim() || undefined, tags: tagList.length > 0 ? tagList : undefined } 
           : p
       );
       setPoems(updatedPoems);
@@ -185,6 +190,17 @@ export default function Admin({ poems, setPoems, onNavigate, onLogout }: AdminPr
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full bg-transparent border border-[var(--border-color)] p-3 text-[var(--text-color)] font-sans text-sm focus:outline-none focus:border-[var(--text-color)] transition-colors"
                   placeholder="e.g. Nature, Urban, Reflection"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest font-sans font-semibold text-[var(--text-muted)] mb-2">Tags (comma separated)</label>
+                <input
+                  type="text"
+                  value={tagsText}
+                  onChange={(e) => setTagsText(e.target.value)}
+                  className="w-full bg-transparent border border-[var(--border-color)] p-3 text-[var(--text-color)] font-sans text-sm focus:outline-none focus:border-[var(--text-color)] transition-colors"
+                  placeholder="e.g. Joy, Resilience, Loss"
                 />
               </div>
 

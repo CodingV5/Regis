@@ -6,4 +6,5 @@ export interface Poem {
   imageUrl?: string;
   imagePrompt?: string;
   glyph?: string;
+  tags?: string[];
 }
