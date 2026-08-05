@@ -88,11 +88,19 @@ export default function App() {
     );
   };
 
+  const [loginError, setLoginError] = useState<string | null>(null);
+
   const handleLogin = async () => {
     try {
+      setLoginError(null);
       await signInWithPopup(auth, googleProvider);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      if (error.code === 'auth/unauthorized-domain' || error.message?.includes('invalid')) {
+        setLoginError("This domain is not authorized for Google Sign-In. To fix this on Vercel, you need to create a new Firebase project at console.firebase.google.com, enable Google Auth, add this Vercel domain to Authorized Domains, and set your VITE_FIREBASE_* environment variables in Vercel.");
+      } else {
+        setLoginError(error.message || "An error occurred during sign in.");
+      }
     }
   };
 
@@ -117,6 +125,11 @@ export default function App() {
           <div className="flex flex-col items-center justify-center h-full text-center">
             <h2 className="text-2xl font-serif italic mb-6">Restricted Access</h2>
             <p className="mb-8 font-sans text-sm text-[var(--text-muted)]">You do not have permission to view this page.</p>
+            {loginError && (
+              <div className="mb-6 p-4 max-w-md mx-auto border border-red-500/30 bg-red-500/10 text-red-500 font-sans text-sm rounded">
+                {loginError}
+              </div>
+            )}
             {user ? (
               <button onClick={handleLogout} className="px-6 py-2 border border-[var(--border-color)] font-sans text-xs uppercase tracking-widest hover:bg-[var(--text-color)] hover:text-[var(--bg-color)] transition-colors">Sign Out</button>
             ) : (
