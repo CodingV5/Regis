@@ -11,7 +11,11 @@ import { onAuthStateChanged, User, signInWithPopup, signOut } from 'firebase/aut
 
 export default function App() {
   // Simple state-based router ('home', 'about', 'poem-ID', 'admin')
-  const [currentView, setCurrentView] = useState('home');
+  const [currentView, setCurrentView] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const poemId = params.get('poem');
+    return poemId ? `poem-${poemId}` : 'home';
+  });
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [poems, setPoems] = useState<Poem[]>([]);
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -110,11 +114,22 @@ export default function App() {
 
   const isAdmin = user?.email === 'nobleaidoo5@gmail.com';
 
+  const handleNavigate = (view: string) => {
+    setCurrentView(view);
+    const url = new URL(window.location.href);
+    if (view.startsWith('poem-')) {
+      url.searchParams.set('poem', view.replace('poem-', ''));
+    } else {
+      url.searchParams.delete('poem');
+    }
+    window.history.pushState({}, '', url.toString());
+  };
+
   const renderContent = () => {
     if (!isInitialized) return null;
 
     if (currentView === 'home') {
-      return <Home onNavigate={setCurrentView} poems={poems} favorites={favorites} toggleFavorite={toggleFavorite} />;
+      return <Home onNavigate={handleNavigate} poems={poems} favorites={favorites} toggleFavorite={toggleFavorite} />;
     }
     if (currentView === 'about') {
       return <About />;
@@ -138,20 +153,20 @@ export default function App() {
           </div>
         );
       }
-      return <Admin poems={poems} setPoems={setPoems} onNavigate={setCurrentView} onLogout={handleLogout} />;
+      return <Admin poems={poems} setPoems={setPoems} onNavigate={handleNavigate} onLogout={handleLogout} />;
     }
     if (currentView.startsWith('poem-')) {
       const poemId = currentView.split('poem-')[1];
-      return <PoemReader poemId={poemId} onNavigate={setCurrentView} poems={poems} favorites={favorites} toggleFavorite={toggleFavorite} onToggleDarkMode={handleToggleDarkMode} />;
+      return <PoemReader poemId={poemId} onNavigate={handleNavigate} poems={poems} favorites={favorites} toggleFavorite={toggleFavorite} onToggleDarkMode={handleToggleDarkMode} />;
     }
-    return <Home onNavigate={setCurrentView} poems={poems} favorites={favorites} toggleFavorite={toggleFavorite} />;
+    return <Home onNavigate={handleNavigate} poems={poems} favorites={favorites} toggleFavorite={toggleFavorite} />;
   };
 
   return (
     <div className="flex flex-col md:flex-row h-screen w-full bg-[var(--bg-color)] text-[var(--text-color)] font-serif overflow-hidden selection:bg-[var(--text-muted)] selection:text-[var(--bg-color)] transition-colors duration-300">
       <Navigation
         currentView={currentView}
-        onNavigate={setCurrentView}
+        onNavigate={handleNavigate}
         isDarkMode={isDarkMode}
         onToggleDarkMode={handleToggleDarkMode}
         isAdmin={isAdmin}
@@ -184,6 +199,9 @@ export default function App() {
             </div>
           </header>
           {renderContent()}
+          <footer className="md:hidden shrink-0 py-6 px-6 text-center text-[10px] text-[var(--text-muted)] font-sans mt-auto">
+            &copy; {new Date().getFullYear()} Aidoo Noble Abeiku Amos. All rights reserved.
+          </footer>
         </div>
       </main>
     </div>

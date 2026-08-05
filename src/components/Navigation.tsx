@@ -43,14 +43,14 @@ export default function Navigation({
 
       {/* Desktop Sidebar */}
       <nav className="hidden md:flex w-72 border-r border-[var(--border-color)] flex-col h-full bg-[var(--sidebar-bg)] shrink-0 transition-colors duration-300">
-        <div className="p-8 flex-1">
+        <div className="p-8 flex-1 flex flex-col">
           <h1 
             className="text-xs tracking-[0.2em] uppercase font-sans font-bold mb-10 text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-color)]"
             onClick={() => onNavigate('home')}
           >
             Regis
           </h1>
-          <div className="space-y-8">
+          <div className="space-y-8 flex-1">
             <section>
               <h2 className="text-[10px] tracking-widest uppercase font-sans font-semibold text-[var(--text-muted)] mb-4 opacity-70">Menu</h2>
               <ul className="space-y-3 font-sans">
@@ -68,6 +68,10 @@ export default function Navigation({
                 </li>
               </ul>
             </section>
+          </div>
+          
+          <div className="mt-8 text-[10px] text-[var(--text-muted)] font-sans">
+            &copy; {new Date().getFullYear()} Aidoo Noble Abeiku Amos. All rights reserved.
           </div>
         </div>
         <div className="p-8 border-t border-[var(--border-color)] flex items-center justify-between font-sans">

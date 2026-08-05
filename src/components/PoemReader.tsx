@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, ChevronRight, Star, Play, Square } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Star, Play, Square, Share2, Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Poem } from '../types';
 
@@ -66,11 +66,13 @@ export default function PoemReader({ poemId, onNavigate, poems, favorites, toggl
   
   const [isKinetic, setIsKinetic] = useState(false);
   const [playKey, setPlayKey] = useState(0);
+  const [copied, setCopied] = useState(false);
 
   // Scroll to top when poem changes
   useEffect(() => {
     window.scrollTo(0, 0);
     setIsKinetic(false); // Reset kinetic mode on poem change
+    setCopied(false);
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
@@ -140,6 +142,25 @@ export default function PoemReader({ poemId, onNavigate, poems, favorites, toggl
     }
   };
 
+  const handleShare = async () => {
+    const shareData = {
+      title: poem.title,
+      text: `Read "${poem.title}" by Aidoo Noble Abeiku Amos`,
+      url: window.location.href,
+    };
+    try {
+      if (navigator.share && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (err) {
+      console.error('Error sharing', err);
+    }
+  };
+
   let wordIndex = 0;
 
   return (
@@ -161,6 +182,13 @@ export default function PoemReader({ poemId, onNavigate, poems, favorites, toggl
         <header className="mb-12 relative w-full">
           <h1 className="text-3xl md:text-4xl font-normal italic mb-3 leading-tight text-left pr-24">{poem.title}</h1>
           <div className="absolute top-2 right-0 flex gap-2">
+            <button
+              onClick={handleShare}
+              className={`p-2 focus:outline-none transition-colors text-[var(--border-color)] hover:text-[var(--text-color)]`}
+              aria-label="Share poem"
+            >
+              {copied ? <Check size={20} className="text-green-500" /> : <Share2 size={20} fill="currentColor" />}
+            </button>
             <button
               onClick={toggleKinetic}
               className={`p-2 focus:outline-none transition-colors ${isKinetic ? 'text-green-600 dark:text-green-400' : 'text-[var(--border-color)] hover:text-[var(--text-muted)]'}`}
