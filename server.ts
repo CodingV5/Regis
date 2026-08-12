@@ -3,14 +3,24 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Modality } from "@google/genai";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
+let aiClient: GoogleGenAI | null = null;
+
+function getAI(): GoogleGenAI {
+  if (!aiClient) {
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY environment variable is missing.");
     }
+    aiClient = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
   }
-});
+  return aiClient;
+}
 
 async function startServer() {
   const app = express();
@@ -22,7 +32,7 @@ async function startServer() {
   app.post("/api/tts", async (req, res) => {
     try {
       const { text, voiceName = "Kore" } = req.body;
-      
+      const ai = getAI();
       const response = await ai.models.generateContent({
         model: "gemini-3.1-flash-tts-preview",
         contents: [{ parts: [{ text }] }],
@@ -51,8 +61,9 @@ async function startServer() {
   app.post("/api/analyze-sentiment", async (req, res) => {
     try {
       const { text } = req.body;
+      const ai = getAI();
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.6-flash",
         contents: [
           {
             role: "user",
@@ -73,7 +84,7 @@ ${text}`
         ]
       });
 
-      const jsonStr = response.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      const jsonStr = response.text || "{}";
       const cleaned = jsonStr.replace(/```json/g, "").replace(/```/g, "").trim();
       const result = JSON.parse(cleaned);
 
