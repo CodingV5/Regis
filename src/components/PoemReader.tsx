@@ -1,7 +1,10 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, ChevronRight, Star, Play, Square, Share2, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Star, Play, Square, Share2, Check, Headphones, Loader2, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Poem } from '../types';
+import Actor from './Actor';
+import { useAmbientAudio } from '../hooks/useAmbientAudio';
+import { useGeminiTTS, VoiceName } from '../hooks/useGeminiTTS';
 
 interface PoemReaderProps {
   poemId: string;
@@ -24,25 +27,24 @@ const getWordType = (word: string) => {
 
 const kineticVariants = {
   hidden: { opacity: 0, y: 15, filter: 'blur(8px)' },
-  normal: (i: number) => ({
+  normal: {
     opacity: 1,
     y: 0,
     filter: 'blur(0px)',
-    transition: { delay: i * 0.35, duration: 0.8, ease: "easeOut" }
-  }),
-  shiver: (i: number) => ({
+    transition: { duration: 0.8, ease: "easeOut" }
+  },
+  shiver: {
     opacity: 1,
     y: 0,
     x: [0, -2, 2, -1, 1, 0, -2, 2, 0],
     filter: 'blur(0px)',
     transition: { 
-      delay: i * 0.35, 
       duration: 0.8, 
       ease: "easeOut",
-      x: { delay: i * 0.35 + 0.4, duration: 1.5, repeat: Infinity, repeatType: "mirror", ease: "linear" }
+      x: { delay: 0.4, duration: 1.5, repeat: Infinity, repeatType: "mirror", ease: "linear" }
     }
-  }),
-  shatter: (i: number) => ({
+  },
+  shatter: {
     opacity: 1,
     y: 0,
     scale: [1, 1.25, 0.9, 1.05, 1],
@@ -50,14 +52,13 @@ const kineticVariants = {
     filter: 'blur(0px)',
     color: ['var(--text-color)', '#ef4444', 'var(--text-color)'],
     transition: { 
-      delay: i * 0.35, 
       duration: 0.8, 
       ease: "easeOut",
-      scale: { delay: i * 0.35 + 0.1, duration: 0.5 },
-      rotate: { delay: i * 0.35 + 0.1, duration: 0.5 },
-      color: { delay: i * 0.35 + 0.1, duration: 0.8 }
+      scale: { delay: 0.1, duration: 0.5 },
+      rotate: { delay: 0.1, duration: 0.5 },
+      color: { delay: 0.1, duration: 0.8 }
     }
-  })
+  }
 };
 
 export default function PoemReader({ poemId, onNavigate, poems, favorites, toggleFavorite, onToggleDarkMode }: PoemReaderProps) {
@@ -67,22 +68,93 @@ export default function PoemReader({ poemId, onNavigate, poems, favorites, toggl
   const [isKinetic, setIsKinetic] = useState(false);
   const [playKey, setPlayKey] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [activeWordIndex, setActiveWordIndex] = useState(-1);
+  const [voicePreference, setVoicePreference] = useState<VoiceName | 'Auto'>(() => {
+    return (localStorage.getItem('voicePreference') as VoiceName | 'Auto') || 'Auto';
+  });
+  const [volume, setVolume] = useState<number>(() => {
+    const saved = localStorage.getItem('narrationVolume');
+    return saved ? parseFloat(saved) : 1.0;
+  });
+  const [selectedVoice, setSelectedVoice] = useState<VoiceName>('Zephyr');
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const [poemPace, setPoemPace] = useState(1.0);
+
+  const { isPlaying: isAmbientPlaying, playTheme, stopAudio } = useAmbientAudio();
+  const { playTTS, preloadTTS, stop: stopTTS, isLoading: isTTSLoading, isPreloading } = useGeminiTTS();
+
+  const getAudioTheme = (poem: Poem): 'rain' | 'ocean' | 'wind' | 'ethereal' => {
+    const combinedText = [poem.category, ...(poem.tags || [])].join(' ').toLowerCase();
+    
+    if (combinedText.includes('ocean') || combinedText.includes('water') || combinedText.includes('sea')) return 'ocean';
+    if (combinedText.includes('rain') || combinedText.includes('sad') || combinedText.includes('loss') || combinedText.includes('grief') || combinedText.includes('tear')) return 'rain';
+    if (combinedText.includes('wind') || combinedText.includes('forest') || combinedText.includes('nature') || combinedText.includes('storm')) return 'wind';
+    
+    return 'ethereal';
+  };
+
+  const getVoiceForPoem = (poem: Poem): VoiceName => {
+    const combinedText = [poem.title, poem.category, ...(poem.tags || [])].join(' ').toLowerCase();
+    
+    if (combinedText.includes('dark') || combinedText.includes('night') || combinedText.includes('melancholy') || combinedText.includes('sad') || combinedText.includes('death')) return 'Charon';
+    if (combinedText.includes('fire') || combinedText.includes('storm') || combinedText.includes('passion') || combinedText.includes('wild') || combinedText.includes('anger')) return 'Fenrir';
+    if (combinedText.includes('spring') || combinedText.includes('love') || combinedText.includes('gentle') || combinedText.includes('hope') || combinedText.includes('light')) return 'Kore';
+    if (combinedText.includes('joy') || combinedText.includes('play') || combinedText.includes('happy') || combinedText.includes('child')) return 'Puck';
+    
+    return 'Zephyr';
+  };
+
+  const toggleAmbientAudio = () => {
+    if (isAmbientPlaying) {
+      stopAudio();
+    } else {
+      playTheme(getAudioTheme(poem), volume);
+    }
+  };
+
+  // Save volume preference
+  useEffect(() => {
+    localStorage.setItem('narrationVolume', volume.toString());
+  }, [volume]);
+
+  // Handle voice preference and save it
+  useEffect(() => {
+    localStorage.setItem('voicePreference', voicePreference);
+    if (poem) {
+      if (voicePreference === 'Auto') {
+        setSelectedVoice(getVoiceForPoem(poem));
+      } else {
+        setSelectedVoice(voicePreference);
+      }
+    }
+  }, [voicePreference, poem]);
 
   // Scroll to top when poem changes
   useEffect(() => {
     window.scrollTo(0, 0);
     setIsKinetic(false); // Reset kinetic mode on poem change
     setCopied(false);
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+    setShowVoiceSettings(false);
+    if (poem) {
+      // Analyze sentiment for reading pace
+      fetch('/api/analyze-sentiment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: poem.stanzas.join('\n') })
+      })
+      .then(res => res.json())
+      .then(data => {
+         if (data.pace) setPoemPace(data.pace);
+      })
+      .catch(console.error);
     }
-  }, [poemId]);
+    stopAudio(); // Stop ambient audio on poem change
+    stopTTS();
+  }, [poemId, poem]);
 
   useEffect(() => {
     return () => {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopTTS();
     };
   }, []);
 
@@ -123,22 +195,29 @@ export default function PoemReader({ poemId, onNavigate, poems, favorites, toggl
   const toggleKinetic = () => {
     if (isKinetic) {
       setIsKinetic(false);
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      setActiveWordIndex(-1);
+      stopTTS();
     } else {
       setIsKinetic(true);
       setPlayKey(prev => prev + 1);
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        // Delay speaking slightly to match the visual transition
-        setTimeout(() => {
-          const textToSpeak = poem.stanzas.join('. ');
-          const utterance = new SpeechSynthesisUtterance(textToSpeak);
-          utterance.rate = 0.85; // Roughly match the visual word reveal speed
-          window.speechSynthesis.speak(utterance);
-        }, 100);
-      }
+      setActiveWordIndex(-1);
+      stopTTS();
+      setShowVoiceSettings(false);
+      // Delay speaking slightly to match the visual transition
+      setTimeout(() => {
+        const textToSpeak = poem.stanzas.join('.\n\n');
+        playTTS(
+          textToSpeak,
+          selectedVoice,
+          poemPace,
+          volume,
+          (index) => setActiveWordIndex(index),
+          () => {
+            setActiveWordIndex(-1);
+            setIsKinetic(false);
+          }
+        );
+      }, 100);
     }
   };
 
@@ -162,6 +241,10 @@ export default function PoemReader({ poemId, onNavigate, poems, favorites, toggl
   };
 
   let wordIndex = 0;
+  
+  // Extract all words the speech synthesis will read
+  const wordsToSpeak = poem.stanzas.join('.\n\n').split(/\s+/);
+  const activeWord = activeWordIndex >= 0 && activeWordIndex < wordsToSpeak.length ? wordsToSpeak[activeWordIndex] : '';
 
   return (
     <motion.div
@@ -182,6 +265,76 @@ export default function PoemReader({ poemId, onNavigate, poems, favorites, toggl
         <header className="mb-12 relative w-full">
           <h1 className="text-3xl md:text-4xl font-normal italic mb-3 leading-tight text-left pr-24">{poem.title}</h1>
           <div className="absolute top-2 right-0 flex gap-2">
+            <div className="relative">
+              <button
+                onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+                className={`p-2 focus:outline-none transition-colors ${showVoiceSettings ? 'text-[var(--text-color)]' : 'text-[var(--border-color)] hover:text-[var(--text-muted)]'}`}
+                aria-label="Voice settings"
+              >
+                <Settings size={20} />
+              </button>
+              <AnimatePresence>
+                {showVoiceSettings && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute right-0 top-full mt-2 w-56 bg-[var(--bg-color)] border border-[var(--border-light)] shadow-xl rounded-md p-2 z-50 flex flex-col gap-1"
+                  >
+                    <div className="text-[10px] uppercase tracking-widest font-sans font-bold text-[var(--text-muted)] mb-2 px-2 pt-1">
+                      Narrator Voice
+                    </div>
+                    {(['Auto', 'Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr'] as ('Auto' | VoiceName)[]).map(voice => (
+                      <button
+                        key={voice}
+                        onClick={() => {
+                          setVoicePreference(voice);
+                          setShowVoiceSettings(false);
+                        }}
+                        className={`text-left px-3 py-2 rounded-sm text-sm font-sans transition-colors ${voicePreference === voice ? 'bg-[var(--sidebar-bg)] text-[var(--text-color)]' : 'text-[var(--text-muted)] hover:bg-[var(--sidebar-bg)] hover:text-[var(--text-color)]'}`}
+                      >
+                        {voice === 'Auto' ? 'Auto (Adapts to Poem)' : voice}
+                      </button>
+                    ))}
+                    
+                    <div className="h-px w-full bg-[var(--border-light)] my-2"></div>
+                    
+                    <div className="text-[10px] uppercase tracking-widest font-sans font-bold text-[var(--text-muted)] mb-2 px-2 pt-1">
+                      Narration Volume
+                    </div>
+                    <div className="px-3 pb-2 flex flex-col gap-2">
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="1" 
+                        step="0.05" 
+                        value={volume}
+                        onChange={(e) => setVolume(parseFloat(e.target.value))}
+                        className="w-full accent-[var(--text-color)]"
+                      />
+                      <div className="flex justify-between text-[10px] text-[var(--text-muted)] font-sans">
+                        <span>0%</span>
+                        <span>{Math.round(volume * 100)}%</span>
+                        <span>100%</span>
+                      </div>
+                    </div>
+
+                    {isPreloading && (
+                      <div className="text-[10px] text-[var(--text-muted)] font-sans px-2 pt-2 flex items-center gap-2">
+                        <Loader2 size={12} className="animate-spin" /> Preparing...
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            <button
+              onClick={toggleAmbientAudio}
+              className={`p-2 focus:outline-none transition-colors ${isAmbientPlaying ? 'text-blue-500' : 'text-[var(--border-color)] hover:text-[var(--text-muted)]'}`}
+              aria-label={isAmbientPlaying ? "Stop Ambient Audio" : "Play Ambient Audio"}
+            >
+              {isAmbientPlaying ? <Headphones size={20} className="animate-pulse" /> : <Headphones size={20} />}
+            </button>
             <button
               onClick={handleShare}
               className={`p-2 focus:outline-none transition-colors text-[var(--border-color)] hover:text-[var(--text-color)]`}
@@ -193,8 +346,9 @@ export default function PoemReader({ poemId, onNavigate, poems, favorites, toggl
               onClick={toggleKinetic}
               className={`p-2 focus:outline-none transition-colors ${isKinetic ? 'text-green-600 dark:text-green-400' : 'text-[var(--border-color)] hover:text-[var(--text-muted)]'}`}
               aria-label={isKinetic ? "Stop Kinetic Typography" : "Play Kinetic Typography"}
+              disabled={isTTSLoading}
             >
-              {isKinetic ? <Square size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+              {isTTSLoading ? <Loader2 size={20} className="animate-spin" /> : isKinetic ? <Square size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
             </button>
             <button
               onClick={() => toggleFavorite(poem.id)}
@@ -219,6 +373,11 @@ export default function PoemReader({ poemId, onNavigate, poems, favorites, toggl
             - text strictly left-aligned 
             - Stanza separation with 2rem (mb-8) */}
         <div className="flex flex-col items-start w-full min-h-[300px]">
+          <AnimatePresence>
+            {isKinetic && (
+              <Actor activeWord={activeWord} wordIndex={activeWordIndex} isSpeaking={isKinetic && activeWordIndex !== -1} />
+            )}
+          </AnimatePresence>
           <div className="w-full text-left font-serif text-[18px] md:text-[20px] leading-[1.75] text-[var(--text-color)] selection:bg-[var(--text-muted)] selection:text-[var(--bg-color)]">
             <AnimatePresence mode="wait">
               {isKinetic ? (
@@ -241,7 +400,7 @@ export default function PoemReader({ poemId, onNavigate, poems, favorites, toggl
                                   custom={currentGlobalIndex}
                                   variants={kineticVariants}
                                   initial="hidden"
-                                  animate={type}
+                                  animate={currentGlobalIndex <= activeWordIndex ? type : "hidden"}
                                   className="inline-block"
                                 >
                                   {word || '\u00A0'}

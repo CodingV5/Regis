@@ -30,4 +30,8 @@
     transition: background-color 0.3s ease, color 0.3s ease;
     @apply font-serif antialiased;
   }
+
+  button, [role="button"], a {
+    cursor: pointer;
+  }
 }
