@@ -87,6 +87,15 @@ export function useGeminiTTS() {
   const playTTS = async (text: string, voiceName: VoiceName, pace: number = 1.0, volume: number = 1.0, onWordIndexUpdate: (index: number) => void, onEnd: () => void) => {
     stop();
     setIsLoading(true);
+    
+    // Initialize or resume AudioContext synchronously for mobile browsers
+    if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    }
+    if (audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume();
+    }
+
     try {
       let audioBuffer: AudioBuffer;
       let audioCtx: AudioContext;

@@ -163,7 +163,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-screen w-full bg-[var(--bg-color)] text-[var(--text-color)] font-serif overflow-hidden selection:bg-[var(--text-muted)] selection:text-[var(--bg-color)] transition-colors duration-300">
+    <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[var(--bg-color)] text-[var(--text-color)] font-serif overflow-hidden selection:bg-[var(--text-muted)] selection:text-[var(--bg-color)] transition-colors duration-300">
       <Navigation
         currentView={currentView}
         onNavigate={handleNavigate}

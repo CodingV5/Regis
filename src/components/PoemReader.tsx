@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight, Star, Play, Square, Share2, Check, Headphone
 import { useEffect, useState } from 'react';
 import { Poem } from '../types';
 import Actor from './Actor';
-import { useAmbientAudio } from '../hooks/useAmbientAudio';
 import { useGeminiTTS, VoiceName } from '../hooks/useGeminiTTS';
 
 interface PoemReaderProps {
@@ -80,18 +79,7 @@ export default function PoemReader({ poemId, onNavigate, poems, favorites, toggl
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [poemPace, setPoemPace] = useState(1.0);
 
-  const { isPlaying: isAmbientPlaying, playTheme, stopAudio } = useAmbientAudio();
   const { playTTS, preloadTTS, stop: stopTTS, isLoading: isTTSLoading, isPreloading } = useGeminiTTS();
-
-  const getAudioTheme = (poem: Poem): 'rain' | 'ocean' | 'wind' | 'ethereal' => {
-    const combinedText = [poem.category, ...(poem.tags || [])].join(' ').toLowerCase();
-    
-    if (combinedText.includes('ocean') || combinedText.includes('water') || combinedText.includes('sea')) return 'ocean';
-    if (combinedText.includes('rain') || combinedText.includes('sad') || combinedText.includes('loss') || combinedText.includes('grief') || combinedText.includes('tear')) return 'rain';
-    if (combinedText.includes('wind') || combinedText.includes('forest') || combinedText.includes('nature') || combinedText.includes('storm')) return 'wind';
-    
-    return 'ethereal';
-  };
 
   const getVoiceForPoem = (poem: Poem): VoiceName => {
     const combinedText = [poem.title, poem.category, ...(poem.tags || [])].join(' ').toLowerCase();
@@ -104,13 +92,7 @@ export default function PoemReader({ poemId, onNavigate, poems, favorites, toggl
     return 'Zephyr';
   };
 
-  const toggleAmbientAudio = () => {
-    if (isAmbientPlaying) {
-      stopAudio();
-    } else {
-      playTheme(getAudioTheme(poem), volume);
-    }
-  };
+
 
   // Save volume preference
   useEffect(() => {
@@ -148,7 +130,6 @@ export default function PoemReader({ poemId, onNavigate, poems, favorites, toggl
       })
       .catch(console.error);
     }
-    stopAudio(); // Stop ambient audio on poem change
     stopTTS();
   }, [poemId, poem]);
 
@@ -203,21 +184,19 @@ export default function PoemReader({ poemId, onNavigate, poems, favorites, toggl
       setActiveWordIndex(-1);
       stopTTS();
       setShowVoiceSettings(false);
-      // Delay speaking slightly to match the visual transition
-      setTimeout(() => {
-        const textToSpeak = poem.stanzas.join('.\n\n');
-        playTTS(
-          textToSpeak,
-          selectedVoice,
-          poemPace,
-          volume,
-          (index) => setActiveWordIndex(index),
-          () => {
-            setActiveWordIndex(-1);
-            setIsKinetic(false);
-          }
-        );
-      }, 100);
+      // Start playback immediately for mobile browsers
+      const textToSpeak = poem.stanzas.join('.\n\n');
+      playTTS(
+        textToSpeak,
+        selectedVoice,
+        poemPace,
+        volume,
+        (index) => setActiveWordIndex(index),
+        () => {
+          setActiveWordIndex(-1);
+          setIsKinetic(false);
+        }
+      );
     }
   };
 
@@ -328,13 +307,7 @@ export default function PoemReader({ poemId, onNavigate, poems, favorites, toggl
                 )}
               </AnimatePresence>
             </div>
-            <button
-              onClick={toggleAmbientAudio}
-              className={`p-2 focus:outline-none transition-colors ${isAmbientPlaying ? 'text-blue-500' : 'text-[var(--border-color)] hover:text-[var(--text-muted)]'}`}
-              aria-label={isAmbientPlaying ? "Stop Ambient Audio" : "Play Ambient Audio"}
-            >
-              {isAmbientPlaying ? <Headphones size={20} className="animate-pulse" /> : <Headphones size={20} />}
-            </button>
+
             <button
               onClick={handleShare}
               className={`p-2 focus:outline-none transition-colors text-[var(--border-color)] hover:text-[var(--text-color)]`}
